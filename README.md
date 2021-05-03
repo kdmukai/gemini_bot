@@ -1,7 +1,7 @@
 # gemini_bot
 Simple Gemini DCA bot
 
-The normal Gemini web or app platforms charge pretty high fees, comparable to Coinbase. But this bot takes advantage of their API fee structure which is completely different and is insanely cheap. It creates a "maker-or-cancel" limit buy or sell order and only incurs their super-low 0.1% "maker" API fee (as opposed to their still very low 0.35% "taker" API fee). That means the fee on a $100 order would be 10¢!
+The normal [Gemini](https://www.gemini.com/share/v588gelc8) web or app platforms charge pretty high fees, comparable to Coinbase. But this bot takes advantage of their API fee structure which is completely different and is insanely cheap. It creates a "maker-or-cancel" limit buy or sell order and only incurs their super-low 0.1% "maker" API fee (as opposed to their still very low 0.35% "taker" API fee). That means the fee on a $100 order would be 10¢!
 
 Run this bot as a repeating cron job to dollar cost average (DCA) your buys or sells for nearly zero fees.
 
@@ -42,6 +42,8 @@ optional arguments:
 
 
 ## Setup:
+Create a [Gemini account](https://www.gemini.com/share/v588gelc8) and go through the additional identity verification in order to create an API key.
+
 Generate an API key for your account:
 * Scope: "primary"
 * Permissions: "Trading"

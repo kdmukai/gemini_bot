@@ -1,11 +1,11 @@
 # gemini_bot
 Simple Gemini DCA bot
 
-Creates a "maker-or-cancel" limit buy or sell order on Gemini to take advantage of their super-low 0.1% "maker" fee (as opposed to their still very low 0.35% "taker" fee). That means the fee on a $100 order would 10¢!
+The normal Gemini web or app platforms charge pretty high fees, comparable to Coinbase. But this bot takes advantage of their API fee structure which is completely different and is insanely cheap. It creates a "maker-or-cancel" limit buy or sell order and only incurs their super-low 0.1% "maker" API fee (as opposed to their still very low 0.35% "taker" API fee). That means the fee on a $100 order would be 10¢!
 
 Run this bot as a repeating cron job to dollar cost average (DCA) your buys or sells for nearly zero fees.
 
-Current Gemini minimum API orders are 0.00001 for bitcoin which allows for extremely small orders (0.00001 btc @ $60k = $0.60!). I strongly recommend making LOTS of small, frequent orders rather than a few large ones. Learn more about [micro dollar cost averaging](https://github.com/kdmukai/gdax_bot/blob/master/README.md#basic-investing-strategy-dollar-cost-averaging).
+Current Gemini minimum API orders are 0.00001 for bitcoin which allows for extremely small orders (0.00001 btc @ $60k = $0.60!). I strongly recommend making LOTS of small, frequent orders rather than a few large ones. Learn more about what I call [micro dollar cost averaging](https://github.com/kdmukai/gdax_bot/blob/master/README.md#basic-investing-strategy-dollar-cost-averaging).
 
 
 ### Usage

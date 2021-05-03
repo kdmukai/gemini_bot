@@ -1,0 +1,12 @@
+[sandbox]
+CLIENT_KEY = xxx
+CLIENT_SECRET = xxx
+
+
+[production]
+CLIENT_KEY = xxx
+CLIENT_SECRET = xxx
+SNS_TOPIC = arn:aws:sns:...
+AWS_ACCESS_KEY_ID = xxx
+AWS_SECRET_ACCESS_KEY = xxx
+AWS_REGION = us-east-1

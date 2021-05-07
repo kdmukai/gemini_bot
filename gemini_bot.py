@@ -178,7 +178,7 @@ if __name__ == "__main__":
         except GeminiRequestException as e:
             sns.publish(
                 TopicArn=sns_topic,
-                Subject=f"ERROR placing {base_currency} {order_side} order: {e.response_json.get('title')}",
+                Subject=f"ERROR placing {base_currency} {order_side} order: {e.response_json.get('reason')}",
                 Message=json.dumps(e.response_json, indent=4)
             )
             print(json.dumps(e.response_json, indent=4))

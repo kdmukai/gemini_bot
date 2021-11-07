@@ -82,6 +82,12 @@ parser.add_argument('-p', '--price',
                     dest="price",
                     help="Define the target price, rather than have midmarket price calculated")
 
+parser.add_argument('--sns',
+                    action="store_true",
+                    default=False,
+                    dest="sns",
+                    help="Optionally post to an SNS topic")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -95,6 +101,7 @@ if __name__ == "__main__":
     job_mode = args.job_mode
     warn_after = args.warn_after
     price = args.price
+    sns = args.sns
 
     if not sandbox_mode and not job_mode:
         response = input("Production purchase! Confirm [Y]: ")
@@ -139,13 +146,14 @@ if __name__ == "__main__":
     print(f"base_increment: {base_increment}")
     print(f"quote_increment: {quote_increment}")
 
-    # Prep boto SNS client for email notifications
-    sns = boto3.client(
-        "sns",
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        region_name=aws_region
-    )
+    if sns:
+        # Prep boto SNS client for email notifications
+        sns = boto3.client(
+            "sns",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region
+        )
 
     def calculate_target_price():
         order_book = gemini_api_conn.current_order_book(market_name)
@@ -203,41 +211,42 @@ if __name__ == "__main__":
 
     order_id = order.get("order_id")
 
-    # Set up monitoring loop for the next hour
-    wait_time = 60
-    total_wait_time = 0
-    retries = 0
-    while Decimal(order.get('remaining_amount')) > Decimal('0'):
-        if total_wait_time > warn_after:
-            sns.publish(
-                TopicArn=sns_topic,
-                Subject=f"{market_name} {order_side} order of {amount} {amount_currency} OPEN/UNFILLED",
-                Message=json.dumps(order, indent=4)
-            )
-            exit()
+    # If SNS is defined, set up monitoring loop for the next hour
+    if sns:
+        wait_time = 60
+        total_wait_time = 0
+        retries = 0
+        while Decimal(order.get('remaining_amount')) > Decimal('0'):
+            if total_wait_time > warn_after:
+                sns.publish(
+                    TopicArn=sns_topic,
+                    Subject=f"{market_name} {order_side} order of {amount} {amount_currency} OPEN/UNFILLED",
+                    Message=json.dumps(order, indent=4)
+                )
+                exit()
 
-        if order.get('is_cancelled'):
-            # Most likely the order was manually cancelled in the UI
-            sns.publish(
-                TopicArn=sns_topic,
-                Subject=f"{market_name} {order_side} order of {amount} {amount_currency} CANCELLED",
-                Message=json.dumps(order, sort_keys=True, indent=4)
-            )
-            exit()
+            if order.get('is_cancelled'):
+                # Most likely the order was manually cancelled in the UI
+                sns.publish(
+                    TopicArn=sns_topic,
+                    Subject=f"{market_name} {order_side} order of {amount} {amount_currency} CANCELLED",
+                    Message=json.dumps(order, sort_keys=True, indent=4)
+                )
+                exit()
 
-        print(f"{get_timestamp()}: Order {order_id} still pending. Sleeping for {wait_time} (total {total_wait_time})")
-        time.sleep(wait_time)
-        total_wait_time += wait_time
-        order = gemini_api_conn.order_status(order_id=order_id)
+            print(f"{get_timestamp()}: Order {order_id} still pending. Sleeping for {wait_time} (total {total_wait_time})")
+            time.sleep(wait_time)
+            total_wait_time += wait_time
+            order = gemini_api_conn.order_status(order_id=order_id)
 
-    # Order status is no longer pending!
-    print(json.dumps(order, indent=2))
+        # Order status is no longer pending!
+        print(json.dumps(order, indent=2))
 
-    subject = f"{market_name} {order_side} order of {amount} {amount_currency} complete @ {target_price} {quote_currency}"
-    print(subject)
-    sns.publish(
-        TopicArn=sns_topic,
-        Subject=subject,
-        Message=json.dumps(order, sort_keys=True, indent=4)
-    )
+        subject = f"{market_name} {order_side} order of {amount} {amount_currency} complete @ {target_price} {quote_currency}"
+        print(subject)
+        sns.publish(
+            TopicArn=sns_topic,
+            Subject=subject,
+            Message=json.dumps(order, sort_keys=True, indent=4)
+        )
 

@@ -38,6 +38,8 @@ optional arguments:
   -j, --job             Suppresses user confirmation prompt
   -c CONFIG_FILE, --config CONFIG_FILE
                         Override default config file location
+  -p PRICE, --price PRICE
+                        Define the target price, rather than have midmarket price calculated
 ```
 
 
@@ -67,7 +69,7 @@ You can run this manually for one-off buys or sells but it's really meant to be 
 
 For example:
 ```
-05 */2 * * * cd /my/gemini_bot/dir && /my/.envs/gemini_bot-env/bin/python -u gemini_bot.py BTCUSD BUY 5.00 BTC
+05 */2 * * * cd /my/gemini_bot/dir && /my/.envs/gemini_bot-env/bin/python -u gemini_bot.py BTCUSD BUY 5.00 USD 
 ```
 
 This will buy $5 worth of BTC every other hour at 5min past the hour.

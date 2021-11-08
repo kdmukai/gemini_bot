@@ -212,38 +212,40 @@ if __name__ == "__main__":
     order_id = order.get("order_id")
 
     # If SNS is defined, set up monitoring loop for the next hour
-    if sns:
-        wait_time = 60
-        total_wait_time = 0
-        retries = 0
-        while Decimal(order.get('remaining_amount')) > Decimal('0'):
-            if total_wait_time > warn_after:
+    wait_time = 60
+    total_wait_time = 0
+    retries = 0
+    while Decimal(order.get('remaining_amount')) > Decimal('0'):
+        if total_wait_time > warn_after:
+            if sns:
                 sns.publish(
                     TopicArn=sns_topic,
                     Subject=f"{market_name} {order_side} order of {amount} {amount_currency} OPEN/UNFILLED",
                     Message=json.dumps(order, indent=4)
                 )
-                exit()
+            exit()
 
-            if order.get('is_cancelled'):
-                # Most likely the order was manually cancelled in the UI
+        if order.get('is_cancelled'):
+            # Most likely the order was manually cancelled in the UI
+            if sns:
                 sns.publish(
                     TopicArn=sns_topic,
                     Subject=f"{market_name} {order_side} order of {amount} {amount_currency} CANCELLED",
                     Message=json.dumps(order, sort_keys=True, indent=4)
                 )
-                exit()
+            exit()
 
-            print(f"{get_timestamp()}: Order {order_id} still pending. Sleeping for {wait_time} (total {total_wait_time})")
-            time.sleep(wait_time)
-            total_wait_time += wait_time
-            order = gemini_api_conn.order_status(order_id=order_id)
+        print(f"{get_timestamp()}: Order {order_id} still pending. Sleeping for {wait_time} (total {total_wait_time})")
+        time.sleep(wait_time)
+        total_wait_time += wait_time
+        order = gemini_api_conn.order_status(order_id=order_id)
 
-        # Order status is no longer pending!
-        print(json.dumps(order, indent=2))
+    # Order status is no longer pending!
+    print(json.dumps(order, indent=2))
 
-        subject = f"{market_name} {order_side} order of {amount} {amount_currency} complete @ {target_price} {quote_currency}"
-        print(subject)
+    subject = f"{market_name} {order_side} order of {amount} {amount_currency} complete @ {target_price} {quote_currency}"
+    print(subject)
+    if sns:
         sns.publish(
             TopicArn=sns_topic,
             Subject=subject,

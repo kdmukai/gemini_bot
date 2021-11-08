@@ -77,6 +77,17 @@ parser.add_argument('-c', '--config',
                     dest="config_file",
                     help="Override default config file location")
 
+parser.add_argument('-p', '--price',
+                    type=Decimal,
+                    dest="price",
+                    help="Define the target price, rather than have midmarket price calculated")
+
+parser.add_argument('--sns',
+                    action="store_true",
+                    default=False,
+                    dest="sns",
+                    help="Optionally post to an SNS topic")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -89,6 +100,8 @@ if __name__ == "__main__":
     sandbox_mode = args.sandbox_mode
     job_mode = args.job_mode
     warn_after = args.warn_after
+    price = args.price
+    sns = args.sns
 
     if not sandbox_mode and not job_mode:
         response = input("Production purchase! Confirm [Y]: ")
@@ -133,30 +146,35 @@ if __name__ == "__main__":
     print(f"base_increment: {base_increment}")
     print(f"quote_increment: {quote_increment}")
 
-    # Prep boto SNS client for email notifications
-    sns = boto3.client(
-        "sns",
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        region_name=aws_region
-    )
+    if sns:
+        # Prep boto SNS client for email notifications
+        sns = boto3.client(
+            "sns",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region
+        )
 
-    def calculate_midmarket_price():
+    def calculate_target_price():
         order_book = gemini_api_conn.current_order_book(market_name)
 
         bid = Decimal(order_book.get('bids')[0].get('price')).quantize(quote_increment)
         ask = Decimal(order_book.get('asks')[0].get('price')).quantize(quote_increment)
 
-        # Avg the bid/ask but round to nearest quote_increment
-        if order_side == "buy":
-            midmarket_price = (math.floor((ask + bid) / Decimal('2.0') / quote_increment) * quote_increment).quantize(quote_increment, decimal.ROUND_DOWN)
+        #Determine if price was passed as an argument
+        if not price:
+            # Avg the bid/ask but round to nearest quote_increment
+            if order_side == "buy":
+                target_price = (math.floor((ask + bid) / Decimal('2.0') / quote_increment) * quote_increment).quantize(quote_increment, decimal.ROUND_DOWN)
+            else:
+                target_price = (math.floor((ask + bid) / Decimal('2.0') / quote_increment) * quote_increment).quantize(quote_increment, decimal.ROUND_UP)
         else:
-            midmarket_price = (math.floor((ask + bid) / Decimal('2.0') / quote_increment) * quote_increment).quantize(quote_increment, decimal.ROUND_UP)
+            target_price = price
         print(f"ask: ${ask}")
         print(f"bid: ${bid}")
-        print(f"midmarket_price: ${midmarket_price}")
+        print(f"target_price: ${target_price}")
 
-        return midmarket_price
+        return target_price
 
 
     def place_order(price):
@@ -186,33 +204,35 @@ if __name__ == "__main__":
         return result
 
 
-    midmarket_price = calculate_midmarket_price()
-    order = place_order(midmarket_price)
+    target_price = calculate_target_price()
+    order = place_order(target_price)
 
     print(json.dumps(order, indent=2))
 
     order_id = order.get("order_id")
 
-    # Set up monitoring loop for the next hour
+    # If SNS is defined, set up monitoring loop for the next hour
     wait_time = 60
     total_wait_time = 0
     retries = 0
     while Decimal(order.get('remaining_amount')) > Decimal('0'):
         if total_wait_time > warn_after:
-            sns.publish(
-                TopicArn=sns_topic,
-                Subject=f"{market_name} {order_side} order of {amount} {amount_currency} OPEN/UNFILLED",
-                Message=json.dumps(order, indent=4)
-            )
+            if sns:
+                sns.publish(
+                    TopicArn=sns_topic,
+                    Subject=f"{market_name} {order_side} order of {amount} {amount_currency} OPEN/UNFILLED",
+                    Message=json.dumps(order, indent=4)
+                )
             exit()
 
         if order.get('is_cancelled'):
             # Most likely the order was manually cancelled in the UI
-            sns.publish(
-                TopicArn=sns_topic,
-                Subject=f"{market_name} {order_side} order of {amount} {amount_currency} CANCELLED",
-                Message=json.dumps(order, sort_keys=True, indent=4)
-            )
+            if sns:
+                sns.publish(
+                    TopicArn=sns_topic,
+                    Subject=f"{market_name} {order_side} order of {amount} {amount_currency} CANCELLED",
+                    Message=json.dumps(order, sort_keys=True, indent=4)
+                )
             exit()
 
         print(f"{get_timestamp()}: Order {order_id} still pending. Sleeping for {wait_time} (total {total_wait_time})")
@@ -223,11 +243,12 @@ if __name__ == "__main__":
     # Order status is no longer pending!
     print(json.dumps(order, indent=2))
 
-    subject = f"{market_name} {order_side} order of {amount} {amount_currency} complete @ {midmarket_price} {quote_currency}"
+    subject = f"{market_name} {order_side} order of {amount} {amount_currency} complete @ {target_price} {quote_currency}"
     print(subject)
-    sns.publish(
-        TopicArn=sns_topic,
-        Subject=subject,
-        Message=json.dumps(order, sort_keys=True, indent=4)
-    )
+    if sns:
+        sns.publish(
+            TopicArn=sns_topic,
+            Subject=subject,
+            Message=json.dumps(order, sort_keys=True, indent=4)
+        )
 

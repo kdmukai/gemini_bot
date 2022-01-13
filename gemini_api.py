@@ -19,13 +19,16 @@ class GeminiRequestException(Exception):
 
 class GeminiApiConnection(object):
 
-    def __init__(self, client_key: str, client_secret: str):
+    def __init__(self, client_key: str, client_secret: str, sandbox: bool):
         self.client_key = client_key
         self.client_secret = client_secret.encode()
+        self.sandbox = sandbox
 
 
     def _make_public_request(self, endpoint: str):
         base_url = "https://api.gemini.com/v1"
+        if self.sandbox:
+            base_url = "https://api.sandbox.gemini.com/v1"
         url = base_url + endpoint
 
         r = requests.get(url)
@@ -38,6 +41,8 @@ class GeminiApiConnection(object):
 
     def _make_authenticated_request(self, verb: str, endpoint: str, payload: dict = {}):
         base_url = "https://api.gemini.com/v1"
+        if self.sandbox:
+            base_url = "https://api.sandbox.gemini.com/v1"
         url = base_url + endpoint
 
         t = datetime.datetime.now()

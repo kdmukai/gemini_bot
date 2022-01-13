@@ -112,7 +112,7 @@ if __name__ == "__main__":
     aws_secret_access_key = config.get(config_section, 'AWS_SECRET_ACCESS_KEY')
     aws_region = config.get(config_section, 'AWS_REGION')
 
-    gemini_api_conn = GeminiApiConnection(client_key=client_key, client_secret=secret_key)
+    gemini_api_conn = GeminiApiConnection(client_key=client_key, client_secret=secret_key, sandbox=sandbox_mode)
 
     # Configure the market details
     symbol_details = gemini_api_conn.symbol_details(market_name)
